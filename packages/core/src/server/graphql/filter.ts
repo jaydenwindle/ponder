@@ -1,5 +1,6 @@
 import { BuildError } from "@/common/errors.js";
 import type { Schema } from "@/schema/common.js";
+import type { Constraints, Table } from "@/schema/common.js";
 import {
   getTables,
   isEnumColumn,
@@ -33,89 +34,139 @@ const filterOperators = {
   ],
 } as const;
 
+const buildFilterTypeForTable = (
+  tableName: string,
+  table: Table,
+  tables: { [tableName: string]: { table: Table; constraints: Constraints } },
+  entityFilterTypes: Record<string, GraphQLInputObjectType>,
+  enumTypes: Record<string, GraphQLEnumType>,
+) => {
+  const filterType = new GraphQLInputObjectType({
+    name: `${tableName}Filter`,
+    fields: () => {
+      const filterFields: GraphQLInputFieldConfigMap = {
+        // Logical operators
+        AND: { type: new GraphQLList(filterType) },
+        OR: { type: new GraphQLList(filterType) },
+      };
+
+      Object.entries(table).forEach(([columnName, column]) => {
+        // Note: Only include non-virtual columns in plural fields
+        if (isOneColumn(column)) return;
+
+        if (isManyColumn(column)) {
+          const referenceTableName = column[" referenceTable"];
+          const referenceTable = tables[referenceTableName];
+
+          if (referenceTable && !entityFilterTypes[referenceTableName]) {
+            entityFilterTypes[referenceTableName] = buildFilterTypeForTable(
+              referenceTableName,
+              referenceTable.table,
+              tables,
+              entityFilterTypes,
+              enumTypes,
+            );
+          }
+
+          const entityFilterType = entityFilterTypes[referenceTableName];
+
+          if (entityFilterType) {
+            filterFields[columnName] = {
+              type: entityFilterType,
+            };
+          }
+
+          return;
+        }
+
+        if (isJSONColumn(column)) return;
+
+        const type = isEnumColumn(column)
+          ? enumTypes[column[" enum"]]!
+          : SCALARS[column[" scalar"]];
+
+        if (isListColumn(column)) {
+          // List fields => universal, plural
+          filterOperators.universal.forEach((suffix) => {
+            filterFields[`${columnName}${suffix}`] = {
+              type: new GraphQLList(type),
+            };
+          });
+
+          filterOperators.plural.forEach((suffix) => {
+            filterFields[`${columnName}${suffix}`] = {
+              type,
+            };
+          });
+        } else {
+          // Scalar fields => universal, singular, numeric OR string depending on base type
+          // Note: Booleans => universal and singular only.
+          filterOperators.universal.forEach((suffix) => {
+            filterFields[`${columnName}${suffix}`] = {
+              type,
+            };
+          });
+
+          filterOperators.singular.forEach((suffix) => {
+            filterFields[`${columnName}${suffix}`] = {
+              type: new GraphQLList(type),
+            };
+          });
+
+          if (
+            (isScalarColumn(column) || isReferenceColumn(column)) &&
+            ["int", "bigint", "float", "hex"].includes(column[" scalar"])
+          ) {
+            filterOperators.numeric.forEach((suffix) => {
+              filterFields[`${columnName}${suffix}`] = {
+                type: type,
+              };
+            });
+          }
+
+          if (
+            (isScalarColumn(column) || isReferenceColumn(column)) &&
+            "string" === column[" scalar"]
+          ) {
+            filterOperators.string.forEach((suffix) => {
+              filterFields[`${columnName}${suffix}`] = {
+                type: type,
+              };
+            });
+          }
+        }
+      });
+
+      return filterFields;
+    },
+  });
+
+  return filterType;
+};
+
 export const buildEntityFilterTypes = ({
   schema,
   enumTypes,
-}: { schema: Schema; enumTypes: Record<string, GraphQLEnumType> }) => {
+}: {
+  schema: Schema;
+  enumTypes: Record<string, GraphQLEnumType>;
+}) => {
   const entityFilterTypes: Record<string, GraphQLInputObjectType> = {};
 
-  for (const [tableName, { table }] of Object.entries(getTables(schema))) {
-    const filterType = new GraphQLInputObjectType({
-      name: `${tableName}Filter`,
-      fields: () => {
-        const filterFields: GraphQLInputFieldConfigMap = {
-          // Logical operators
-          AND: { type: new GraphQLList(filterType) },
-          OR: { type: new GraphQLList(filterType) },
-        };
+  const tables = getTables(schema);
 
-        Object.entries(table).forEach(([columnName, column]) => {
-          // Note: Only include non-virtual columns in plural fields
-          if (isOneColumn(column)) return;
-          if (isManyColumn(column)) return;
-          if (isJSONColumn(column)) return;
+  for (const [tableName, { table }] of Object.entries(tables)) {
+    if (!entityFilterTypes[tableName]) {
+      const filterType = buildFilterTypeForTable(
+        tableName,
+        table,
+        tables,
+        entityFilterTypes,
+        enumTypes,
+      );
 
-          const type = isEnumColumn(column)
-            ? enumTypes[column[" enum"]]!
-            : SCALARS[column[" scalar"]];
-
-          if (isListColumn(column)) {
-            // List fields => universal, plural
-            filterOperators.universal.forEach((suffix) => {
-              filterFields[`${columnName}${suffix}`] = {
-                type: new GraphQLList(type),
-              };
-            });
-
-            filterOperators.plural.forEach((suffix) => {
-              filterFields[`${columnName}${suffix}`] = {
-                type,
-              };
-            });
-          } else {
-            // Scalar fields => universal, singular, numeric OR string depending on base type
-            // Note: Booleans => universal and singular only.
-            filterOperators.universal.forEach((suffix) => {
-              filterFields[`${columnName}${suffix}`] = {
-                type,
-              };
-            });
-
-            filterOperators.singular.forEach((suffix) => {
-              filterFields[`${columnName}${suffix}`] = {
-                type: new GraphQLList(type),
-              };
-            });
-
-            if (
-              (isScalarColumn(column) || isReferenceColumn(column)) &&
-              ["int", "bigint", "float", "hex"].includes(column[" scalar"])
-            ) {
-              filterOperators.numeric.forEach((suffix) => {
-                filterFields[`${columnName}${suffix}`] = {
-                  type: type,
-                };
-              });
-            }
-
-            if (
-              (isScalarColumn(column) || isReferenceColumn(column)) &&
-              "string" === column[" scalar"]
-            ) {
-              filterOperators.string.forEach((suffix) => {
-                filterFields[`${columnName}${suffix}`] = {
-                  type: type,
-                };
-              });
-            }
-          }
-        });
-
-        return filterFields;
-      },
-    });
-
-    entityFilterTypes[tableName] = filterType;
+      entityFilterTypes[tableName] = filterType;
+    }
   }
 
   return { entityFilterTypes };
