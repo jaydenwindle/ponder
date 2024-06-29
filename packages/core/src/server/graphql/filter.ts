@@ -51,30 +51,63 @@ const buildFilterTypeForTable = (
       };
 
       Object.entries(table).forEach(([columnName, column]) => {
-        // Note: Only include non-virtual columns in plural fields
-        if (isOneColumn(column)) return;
+        if (isOneColumn(column)) {
+          const refernceColumn = table[column[" reference"]];
 
-        if (isManyColumn(column)) {
-          const referenceTableName = column[" referenceTable"];
+          if (!refernceColumn || !isReferenceColumn(refernceColumn)) return;
+
+          const referenceTableName = refernceColumn[" reference"]
+            .split(".")
+            .at(0);
+
+          if (!referenceTableName) return;
+
           const referenceTable = tables[referenceTableName];
 
-          if (referenceTable && !entityFilterTypes[referenceTableName]) {
-            entityFilterTypes[referenceTableName] = buildFilterTypeForTable(
+          if (!referenceTable) return;
+
+          let entityFilterType = entityFilterTypes[referenceTableName];
+
+          if (!entityFilterType) {
+            entityFilterType = buildFilterTypeForTable(
               referenceTableName,
               referenceTable.table,
               tables,
               entityFilterTypes,
               enumTypes,
             );
+            entityFilterTypes[referenceTableName] = entityFilterType;
           }
 
-          const entityFilterType = entityFilterTypes[referenceTableName];
+          filterFields[columnName] = {
+            type: entityFilterType,
+          };
 
-          if (entityFilterType) {
-            filterFields[columnName] = {
-              type: entityFilterType,
-            };
+          return;
+        }
+
+        if (isManyColumn(column)) {
+          const referenceTableName = column[" referenceTable"];
+          const referenceTable = tables[referenceTableName];
+
+          if (!referenceTable) return;
+
+          let entityFilterType = entityFilterTypes[referenceTableName];
+
+          if (!entityFilterType) {
+            entityFilterType = buildFilterTypeForTable(
+              referenceTableName,
+              referenceTable.table,
+              tables,
+              entityFilterTypes,
+              enumTypes,
+            );
+            entityFilterTypes[referenceTableName] = entityFilterType;
           }
+
+          filterFields[columnName] = {
+            type: entityFilterType,
+          };
 
           return;
         }
