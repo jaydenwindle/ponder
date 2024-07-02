@@ -240,6 +240,19 @@ export function buildWhereObject(where: Record<string, any>) {
       continue;
     }
 
+    // Handle nested operators
+    if (!whereKey.includes("_") && typeof rawValue === "object") {
+      const nestedWhereObject = buildWhereObject(rawValue);
+
+      for (const [nestedWhereKey, nestedRawValue] of Object.entries(
+        nestedWhereObject,
+      )) {
+        whereObject[`${whereKey}.${nestedWhereKey}`] = nestedRawValue;
+      }
+
+      continue;
+    }
+
     const [fieldName, condition_] = whereKey.split(/_(.*)/s);
     // This is a hack to handle the "" operator, which the regex above doesn't handle
     const condition = (
@@ -256,6 +269,8 @@ export function buildWhereObject(where: Record<string, any>) {
     whereObject[fieldName!] ||= {};
     whereObject[fieldName!][storeCondition] = rawValue;
   }
+
+  console.log(whereObject);
 
   return whereObject;
 }

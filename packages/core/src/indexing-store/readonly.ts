@@ -33,13 +33,7 @@ export const getReadonlyStore = ({
   db: HeadlessKysely<any>;
   common: Common;
 }): ReadonlyStore => ({
-  findUnique: async ({
-    tableName,
-    id,
-  }: {
-    tableName: string;
-    id: UserId;
-  }) => {
+  findUnique: async ({ tableName, id }: { tableName: string; id: UserId }) => {
     const table = (schema[tableName] as { table: Table }).table;
 
     return db.wrap({ method: `${tableName}.findUnique` }, async () => {
@@ -76,15 +70,18 @@ export const getReadonlyStore = ({
     after?: string | null;
     limit?: number;
   }) => {
+    console.log("here", where);
     const table = (schema[tableName] as { table: Table }).table;
 
     return db.wrap({ method: `${tableName}.findMany` }, async () => {
+      console.log("there", where);
       let query = db
         .withSchema(namespaceInfo.userNamespace)
         .selectFrom(tableName)
         .selectAll();
 
       if (where) {
+        console.log("ayo", where);
         query = query.where((eb) =>
           buildWhereConditions({ eb, where, table, encoding }),
         );
