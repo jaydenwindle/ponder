@@ -1,6 +1,6 @@
 {
   "name": "@jaydenwindle/ponder-core-fork",
-  "version": "0.4.41",
+  "version": "0.4.41-fork",
   "description": "An open-source framework for crypto application backends",
   "license": "MIT",
   "type": "module",
