@@ -1,4 +1,3 @@
-dist/
 .ponder/
 ponder-env.d.ts
 generated/
