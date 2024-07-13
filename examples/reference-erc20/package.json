@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "ponder dev",
-    "start": "pnpm postgraphile -c postgres://postgres:postgres@localhost:5432/postgres --enhance-graphiql --dynamic-json --schema public --append-plugins postgraphile-plugin-connection-filter --append-plugins @graphile/pg-aggregates --append-plugins @graphile-contrib/pg-simplify-inflector",
+    "start": "pnpm postgraphile -c postgres://postgres:postgres@localhost:5432/postgres --enhance-graphiql --dynamic-json --schema public --append-plugins postgraphile-plugin-connection-filter,@graphile/pg-aggregates,@graphile-contrib/pg-simplify-inflector",
     "codegen": "ponder codegen",
     "serve": "ponder serve",
     "lint": "eslint .",
