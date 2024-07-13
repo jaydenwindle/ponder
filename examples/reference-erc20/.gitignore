@@ -16,3 +16,7 @@ yarn-error.log*
 # Ponder
 /generated/
 /.ponder/
+
+# postgres
+pg_data
+pg_logs.txt

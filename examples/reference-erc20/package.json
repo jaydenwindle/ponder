@@ -4,14 +4,19 @@
   "type": "module",
   "scripts": {
     "dev": "ponder dev",
-    "start": "ponder start",
+    "start": "pnpm postgraphile -c postgres://postgres:postgres@localhost:5432/postgres --enhance-graphiql --dynamic-json --schema public --append-plugins postgraphile-plugin-connection-filter --append-plugins @graphile/pg-aggregates --append-plugins @graphile-contrib/pg-simplify-inflector",
     "codegen": "ponder codegen",
     "serve": "ponder serve",
     "lint": "eslint .",
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@graphile-contrib/pg-simplify-inflector": "^6.1.0",
+    "@graphile/pg-aggregates": "^0.1.1",
     "@ponder/core": "workspace:*",
+    "graphql": "^16.8.1",
+    "postgraphile": "^4.13.0",
+    "postgraphile-plugin-connection-filter": "^2.3.0",
     "viem": "^1.19.9"
   },
   "devDependencies": {

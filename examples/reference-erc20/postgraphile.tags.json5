@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "config": {
+    "class": {
+      "public.Account": {
+        "tags": {
+          "primaryKey": "id",
+        }
+      },
+      "public.Allowance": {
+        "tags": {
+          "foreignKey": [
+            "(\"ownerId\") references \"Account\" (id)",
+            "(\"spenderId\") references \"Account\" (id)",
+          ]
+        }
+      },
+      "public.TransferEvent": {
+        "tags": {
+          "foreignKey": [
+            "(\"fromId\") references \"Account\" (id)",
+            "(\"toId\") references \"Account\" (id)",
+          ]
+        }
+      },
+      "public.ApprovalEvent": {
+        "tags": {
+          "foreignKey": [
+            "(\"ownerId\") references \"Account\" (id)",
+            "(\"spenderId\") references \"Account\" (id)",
+          ]
+        }
+      }
+    }
+  }
+}
