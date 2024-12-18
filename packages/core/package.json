@@ -27,7 +27,7 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "main": "./dist/index.cjs"
+      "require": "./dist/index.cjs"
     },
     "./virtual": {
       "types": "./src/types.d.ts"
